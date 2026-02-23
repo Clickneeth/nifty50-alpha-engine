@@ -12,26 +12,31 @@
 
     <div class="card">
         <p>
-            Based on current signals, the model expects the
-            selected portfolio to outperform approximately
-            <strong>70% – 80%</strong> of NIFTY 50 stocks
-            over the next 30 days.
+            Select a stock below to see its expected
+            performance ranking for this month based on
+            our cross-sectional alpha model.
         </p>
+    </div>
 
-        <div class="metrics">
-            <div>
-                <h3>Confidence</h3>
-                <p>Moderate</p>
-            </div>
-            <div>
-                <h3>Risk Level</h3>
-                <p>Controlled</p>
-            </div>
-            <div>
-                <h3>Rebalance</h3>
-                <p>Monthly</p>
-            </div>
-        </div>
+    <!-- Prediction Section -->
+    <div class="card center">
+        <h2>🔍 Check Stock Outlook</h2>
+
+        <select id="stockSelect">
+            <option value="INFY.NS">INFY</option>
+            <option value="RELIANCE.NS">RELIANCE</option>
+            <option value="HDFCBANK.NS">HDFCBANK</option>
+            <option value="TCS.NS">TCS</option>
+            <option value="ICICIBANK.NS">ICICIBANK</option>
+        </select>
+
+        <br><br>
+
+        <button class="primary-btn" onclick="predictStock()">
+            Predict Performance
+        </button>
+
+        <div id="resultBox" style="margin-top:20px;"></div>
     </div>
 
     <div class="card">
@@ -54,6 +59,33 @@
     </div>
 
 </div>
+
+<!-- JavaScript Section -->
+<script>
+async function predictStock() {
+
+    const ticker = document.getElementById("stockSelect").value;
+
+    const response = await fetch("http://127.0.0.1:8000/predict", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ ticker: ticker })
+    });
+
+    const data = await response.json();
+
+    document.getElementById("resultBox").innerHTML = `
+        <div class="card">
+            <h3>${data.ticker}</h3>
+            <p><strong>Percentile Rank:</strong> ${data.percentile_rank}%</p>
+            <p><strong>Probability of Outperformance:</strong> ${(data.probability_outperform * 100).toFixed(1)}%</p>
+            <p><strong>Risk Level:</strong> ${data.risk_level}</p>
+        </div>
+    `;
+}
+</script>
 
 </body>
 </html>
