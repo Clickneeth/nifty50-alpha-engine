@@ -16,11 +16,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Sample NIFTY list (expand later)
+# ----------------------------
+# FULL NIFTY 50 UNIVERSE
+# ----------------------------
 NIFTY_50 = [
-    "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS",
-    "ICICIBANK.NS", "ITC.NS", "LT.NS", "SBIN.NS",
-    "BHARTIARTL.NS", "ASIANPAINT.NS"
+    "ADANIENT.NS","ADANIPORTS.NS","APOLLOHOSP.NS","ASIANPAINT.NS",
+    "AXISBANK.NS","BAJAJ-AUTO.NS","BAJFINANCE.NS","BAJAJFINSV.NS",
+    "BHARTIARTL.NS","BPCL.NS","BRITANNIA.NS","CIPLA.NS",
+    "COALINDIA.NS","DIVISLAB.NS","DRREDDY.NS","EICHERMOT.NS",
+    "GRASIM.NS","HCLTECH.NS","HDFCBANK.NS","HDFCLIFE.NS",
+    "HEROMOTOCO.NS","HINDALCO.NS","HINDUNILVR.NS","ICICIBANK.NS",
+    "INDUSINDBK.NS","INFY.NS","ITC.NS","JSWSTEEL.NS",
+    "KOTAKBANK.NS","LT.NS","M&M.NS","MARUTI.NS",
+    "NESTLEIND.NS","NTPC.NS","ONGC.NS","POWERGRID.NS",
+    "RELIANCE.NS","SBILIFE.NS","SBIN.NS","SHREECEM.NS",
+    "SUNPHARMA.NS","TATACONSUM.NS","TATAMOTORS.NS","TATASTEEL.NS",
+    "TCS.NS","TECHM.NS","TITAN.NS","ULTRACEMCO.NS",
+    "UPL.NS","WIPRO.NS"
 ]
 
 # ----------------------------
@@ -52,12 +64,13 @@ def predict_scores():
         try:
             df = yf.download(
                 ticker,
-                start="2023-01-01",
+                period="6mo",       # faster than full history
+                interval="1d",
                 progress=False,
                 auto_adjust=True
             )
 
-            if df.empty or len(df) < 60:
+            if df.empty or len(df) < 40:
                 print(f"Skipping {ticker} - insufficient data")
                 continue
 
@@ -67,12 +80,12 @@ def predict_scores():
                 print(f"Skipping {ticker} - no features")
                 continue
 
-            latest = df.iloc[-1].copy()
+            latest = df.iloc[-1]
 
-            score = (
-                float(latest["momentum_20d"]) * 0.6
-                - float(latest["volatility_20d"]) * 0.4
-            )
+            momentum = float(latest["momentum_20d"])
+            volatility = float(latest["volatility_20d"])
+
+            score = (momentum * 0.6) - (volatility * 0.4)
 
             results.append({
                 "ticker": ticker,
