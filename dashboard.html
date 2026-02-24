@@ -71,8 +71,11 @@ async function predictStock() {
 
     const ticker = document.getElementById("stockSelect").value;
 
+    document.getElementById("resultBox").innerHTML =
+        "<p>Loading latest ranking data...</p>";
+
     try {
-        const response = await fetch("http://127.0.0.1:8000/rank");
+        const response = await fetch("https://nifty50-alpha-engine.onrender.com/rank");
         const data = await response.json();
 
         if (data.status !== "success") {
@@ -92,8 +95,8 @@ async function predictStock() {
         const probability = stock.percentile / 100;
 
         let riskLevel = "Moderate";
-        if (stock.percentile > 70) riskLevel = "Low";
-        if (stock.percentile < 40) riskLevel = "Elevated";
+        if (stock.percentile >= 70) riskLevel = "Low";
+        if (stock.percentile <= 40) riskLevel = "Elevated";
 
         document.getElementById("resultBox").innerHTML = `
             <div class="card">
@@ -110,7 +113,7 @@ async function predictStock() {
 
     } catch (error) {
         document.getElementById("resultBox").innerHTML =
-            "<p>Error connecting to backend.</p>";
+            "<p>Error connecting to backend. Try again in a few seconds.</p>";
     }
 }
 </script>
