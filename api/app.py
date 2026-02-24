@@ -15,7 +15,7 @@ app.add_middleware(
     allow_origins=[
         "https://clickneeth.github.io"
     ],
-    allow_credentials=True,
+    allow_credentials=False,   # IMPORTANT
     allow_methods=["GET"],
     allow_headers=["*"],
 )
