@@ -28,6 +28,11 @@
             <option value="HDFCBANK.NS">HDFCBANK</option>
             <option value="TCS.NS">TCS</option>
             <option value="ICICIBANK.NS">ICICIBANK</option>
+            <option value="SBIN.NS">SBIN</option>
+            <option value="LT.NS">LT</option>
+            <option value="ITC.NS">ITC</option>
+            <option value="BHARTIARTL.NS">BHARTIARTL</option>
+            <option value="ASIANPAINT.NS">ASIANPAINT</option>
         </select>
 
         <br><br>
@@ -45,7 +50,7 @@
             <li>Cross-sectional ranking model</li>
             <li>Risk-normalized signals</li>
             <li>Transaction costs included</li>
-            <li>NIFTY 50 universe</li>
+            <li>20-day alpha horizon</li>
         </ul>
     </div>
 
@@ -60,30 +65,53 @@
 
 </div>
 
-<!-- JavaScript Section -->
+<!-- JavaScript -->
 <script>
 async function predictStock() {
 
     const ticker = document.getElementById("stockSelect").value;
 
-    const response = await fetch("http://127.0.0.1:8000/predict", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ ticker: ticker })
-    });
+    try {
+        const response = await fetch("http://127.0.0.1:8000/rank");
+        const data = await response.json();
 
-    const data = await response.json();
+        if (data.status !== "success") {
+            document.getElementById("resultBox").innerHTML =
+                "<p>Unable to fetch ranking data.</p>";
+            return;
+        }
 
-    document.getElementById("resultBox").innerHTML = `
-        <div class="card">
-            <h3>${data.ticker}</h3>
-            <p><strong>Percentile Rank:</strong> ${data.percentile_rank}%</p>
-            <p><strong>Probability of Outperformance:</strong> ${(data.probability_outperform * 100).toFixed(1)}%</p>
-            <p><strong>Risk Level:</strong> ${data.risk_level}</p>
-        </div>
-    `;
+        const stock = data.ranking.find(s => s.ticker === ticker);
+
+        if (!stock) {
+            document.getElementById("resultBox").innerHTML =
+                "<p>Stock not found in ranking.</p>";
+            return;
+        }
+
+        const probability = stock.percentile / 100;
+
+        let riskLevel = "Moderate";
+        if (stock.percentile > 70) riskLevel = "Low";
+        if (stock.percentile < 40) riskLevel = "Elevated";
+
+        document.getElementById("resultBox").innerHTML = `
+            <div class="card">
+                <h3>${stock.ticker}</h3>
+                <p><strong>Rank:</strong> ${stock.rank} / ${data.total_stocks}</p>
+                <p><strong>Percentile Rank:</strong> ${stock.percentile}%</p>
+                <p><strong>Probability of Outperformance:</strong> ${(probability * 100).toFixed(1)}%</p>
+                <p><strong>Risk Level:</strong> ${riskLevel}</p>
+                <p style="margin-top:10px; font-size: 0.9em; color: gray;">
+                    Last Updated: ${data.last_updated}
+                </p>
+            </div>
+        `;
+
+    } catch (error) {
+        document.getElementById("resultBox").innerHTML =
+            "<p>Error connecting to backend.</p>";
+    }
 }
 </script>
 
