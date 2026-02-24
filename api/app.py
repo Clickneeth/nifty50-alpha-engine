@@ -7,18 +7,22 @@ from datetime import datetime
 
 app = FastAPI()
 
-# Enable CORS (for GitHub Pages frontend)
+# --------------------------------------------------
+# CORS CONFIG (GitHub Pages Production)
+# --------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://clickneeth.github.io"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET"],
     allow_headers=["*"],
 )
 
-# ----------------------------
+# --------------------------------------------------
 # FULL NIFTY 50 UNIVERSE
-# ----------------------------
+# --------------------------------------------------
 NIFTY_50 = [
     "ADANIENT.NS","ADANIPORTS.NS","APOLLOHOSP.NS","ASIANPAINT.NS",
     "AXISBANK.NS","BAJAJ-AUTO.NS","BAJFINANCE.NS","BAJAJFINSV.NS",
@@ -35,12 +39,11 @@ NIFTY_50 = [
     "UPL.NS","WIPRO.NS"
 ]
 
-# ----------------------------
-# Feature Engineering
-# ----------------------------
+# --------------------------------------------------
+# FEATURE ENGINEERING
+# --------------------------------------------------
 def compute_features(df):
 
-    # Fix MultiIndex columns from yfinance
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
 
@@ -49,13 +52,11 @@ def compute_features(df):
     df["momentum_20d"] = df["Close"] / df["Close"].shift(20) - 1
 
     df = df.dropna()
-
     return df
 
-
-# ----------------------------
-# Ranking Logic
-# ----------------------------
+# --------------------------------------------------
+# RANKING LOGIC
+# --------------------------------------------------
 def predict_scores():
 
     results = []
@@ -64,20 +65,18 @@ def predict_scores():
         try:
             df = yf.download(
                 ticker,
-                period="6mo",       # faster than full history
+                period="6mo",
                 interval="1d",
                 progress=False,
                 auto_adjust=True
             )
 
             if df.empty or len(df) < 40:
-                print(f"Skipping {ticker} - insufficient data")
                 continue
 
             df = compute_features(df)
 
             if df.empty:
-                print(f"Skipping {ticker} - no features")
                 continue
 
             latest = df.iloc[-1]
@@ -114,10 +113,9 @@ def predict_scores():
 
     return ranking_df
 
-
-# ----------------------------
-# API Endpoint
-# ----------------------------
+# --------------------------------------------------
+# API ENDPOINT
+# --------------------------------------------------
 @app.get("/rank")
 def rank_stocks():
 
