@@ -1,80 +1,38 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>NIFTY 50 Alpha Dashboard</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-<div class="container">
-
-    <h1>📊 NIFTY 50 Alpha Engine</h1>
-
-    <div class="card">
-        <p>
-            Live cross-sectional ranking model using 20-day momentum
-            and volatility factors across the NIFTY 50 universe.
-        </p>
-    </div>
-
-    <!-- Prediction Section -->
-    <div class="card center">
-        <h2>🔍 Check Stock Outlook</h2>
-
-        <select id="stockSelect">
-            <option value="INFY.NS">INFY</option>
-            <option value="RELIANCE.NS">RELIANCE</option>
-            <option value="HDFCBANK.NS">HDFCBANK</option>
-            <option value="TCS.NS">TCS</option>
-            <option value="ICICIBANK.NS">ICICIBANK</option>
-            <option value="SBIN.NS">SBIN</option>
-            <option value="LT.NS">LT</option>
-            <option value="ITC.NS">ITC</option>
-            <option value="BHARTIARTL.NS">BHARTIARTL</option>
-            <option value="ASIANPAINT.NS">ASIANPAINT</option>
-        </select>
-
-        <br><br>
-
-        <button class="primary-btn" onclick="predictStock()">
-            Run Model
-        </button>
-
-        <div id="resultBox" style="margin-top:20px;"></div>
-    </div>
-
-    <div class="card">
-        <h2>Model Methodology</h2>
-        <ul>
-            <li>Cross-sectional equity ranking</li>
-            <li>20-day momentum signal</li>
-            <li>Volatility-adjusted scoring</li>
-            <li>Cloud-deployed FastAPI backend</li>
-        </ul>
-    </div>
-
-    <div class="card center">
-        <h2>💬 Feedback</h2>
-        <p>Suggestions are welcome.</p>
-
-        <a href="https://forms.gle/hML7UWuNUwxEWpdJA" target="_blank">
-            <button class="primary-btn">Submit Suggestion</button>
-        </a>
-    </div>
-
-</div>
-
-<!-- JavaScript -->
 <script>
+
+const API_URL = "https://nifty50-alpha-engine.onrender.com/rank";
+
+async function loadStocks() {
+    try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+
+        if (data.status !== "success") return;
+
+        const select = document.getElementById("stockSelect");
+        select.innerHTML = "";
+
+        data.ranking.forEach(stock => {
+            const option = document.createElement("option");
+            option.value = stock.ticker;
+            option.textContent = stock.ticker.replace(".NS", "");
+            select.appendChild(option);
+        });
+
+    } catch (error) {
+        console.log("Error loading stocks");
+    }
+}
+
 async function predictStock() {
 
     const ticker = document.getElementById("stockSelect").value;
 
     document.getElementById("resultBox").innerHTML =
-        "<p>Loading live ranking data...</p>";
+        "<p>Loading latest ranking data...</p>";
 
     try {
-        const response = await fetch("https://nifty50-alpha-engine.onrender.com/rank");
+        const response = await fetch(API_URL);
         const data = await response.json();
 
         if (data.status !== "success") {
@@ -91,66 +49,32 @@ async function predictStock() {
             return;
         }
 
-        const probability = stock.percentile / 100;
+        const probability = stock.percentile;
 
         let riskLevel = "Moderate";
         if (stock.percentile >= 70) riskLevel = "Low";
         if (stock.percentile <= 40) riskLevel = "Elevated";
 
-        // Build full ranking table
-        let tableRows = "";
-        data.ranking.forEach((s, index) => {
-
-            let rowClass = "";
-            if (index < 5) rowClass = "top-stock";
-            if (index >= data.ranking.length - 5) rowClass = "bottom-stock";
-
-            tableRows += `
-                <tr class="${rowClass}">
-                    <td>${s.rank}</td>
-                    <td>${s.ticker}</td>
-                    <td>${s.score}</td>
-                    <td>${s.percentile}%</td>
-                </tr>
-            `;
-        });
-
         document.getElementById("resultBox").innerHTML = `
             <div class="card">
                 <h3>${stock.ticker}</h3>
                 <p><strong>Rank:</strong> ${stock.rank} / ${data.total_stocks}</p>
-                <p><strong>Percentile:</strong> ${stock.percentile}%</p>
-                <p><strong>Probability of Outperformance:</strong> ${(probability * 100).toFixed(1)}%</p>
+                <p><strong>Percentile Rank:</strong> ${stock.percentile}%</p>
+                <p><strong>Probability of Outperformance:</strong> ${probability.toFixed(1)}%</p>
                 <p><strong>Risk Level:</strong> ${riskLevel}</p>
-                <p style="opacity:0.6; font-size:0.85em;">
+                <p style="margin-top:10px; font-size: 0.9em; color: gray;">
                     Last Updated: ${data.last_updated}
                 </p>
-            </div>
-
-            <div class="card">
-                <h3>Full NIFTY 50 Ranking</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Ticker</th>
-                            <th>Score</th>
-                            <th>Percentile</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${tableRows}
-                    </tbody>
-                </table>
             </div>
         `;
 
     } catch (error) {
         document.getElementById("resultBox").innerHTML =
-            "<p>Error connecting to backend.</p>";
+            "<p>Error connecting to backend. Try again in a few seconds.</p>";
     }
 }
-</script>
 
-</body>
-</html>
+// Load dropdown automatically when page loads
+window.onload = loadStocks;
+
+</script>
