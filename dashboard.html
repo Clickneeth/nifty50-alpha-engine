@@ -2,17 +2,140 @@
 <html>
 <head>
     <title>NIFTY 50 Alpha Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+
+    <style>
+        body {
+            background-color: #0a0f1c;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 40px;
+            margin: 0;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+        }
+
+        select {
+            padding: 12px;
+            font-size: 16px;
+            width: 220px;
+            border-radius: 8px;
+            border: none;
+        }
+
+        button {
+            padding: 14px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: none;
+            background-color: #1f6feb;
+            color: white;
+            cursor: pointer;
+            margin-left: 10px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #1558c0;
+        }
+
+        .card {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: #161b2e;
+            border-radius: 12px;
+        }
+
+        .top-stock {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #10223d;
+            border-radius: 12px;
+            border: 1px solid #1f6feb;
+        }
+
+        .section {
+            margin-top: 50px;
+            text-align: left;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            font-size: 14px;
+            line-height: 1.7;
+            color: #ccc;
+        }
+
+        .feedback-btn {
+            background-color: #22c55e;
+            margin-top: 15px;
+        }
+
+        .feedback-btn:hover {
+            background-color: #16a34a;
+        }
+
+        .divider {
+            margin: 50px auto;
+            width: 60%;
+            height: 1px;
+            background-color: #222;
+        }
+    </style>
 </head>
 <body>
 
 <h1>NIFTY 50 Alpha Engine</h1>
 
 <select id="stockSelect"></select>
-
 <button onclick="predictStock()">Check Stock</button>
 
 <div id="resultBox"></div>
+<div id="topStockBox"></div>
+
+<div class="divider"></div>
+
+<!-- Model Explanation -->
+<div class="section">
+    <h3>📘 What is a Cross-Sectional Model?</h3>
+    <p>
+        This engine ranks stocks relative to each other at a given point in time.
+        It evaluates momentum and volatility across the NIFTY 50 universe and
+        assigns percentile rankings based on relative strength.
+    </p>
+    <p>
+        The model performs best in trending markets where relative strength persists.
+        It may underperform during sideways or highly unstable market phases.
+    </p>
+</div>
+
+<!-- Disclaimer -->
+<div class="section">
+    <h3>⚠ Disclaimer</h3>
+    <p>
+        This tool is developed for educational and research purposes only.
+        Market conditions change rapidly. Model outputs are statistical projections
+        and not financial advice.
+    </p>
+    <p>
+        Past performance does not guarantee future results.
+        Always conduct independent research before making investment decisions.
+    </p>
+</div>
+
+<!-- Feedback Section -->
+<div class="section" style="text-align:center;">
+    <h3>💬 We Value Your Feedback</h3>
+    <p>
+        Help improve the NIFTY 50 Alpha Engine by sharing your suggestions,
+        ideas, or reporting issues.
+    </p>
+
+    <a href="https://forms.gle/sdGJKq2aE2jZfeVU6" target="_blank">
+        <button class="feedback-btn">Give Feedback</button>
+    </a>
+</div>
 
 <script>
 
@@ -20,50 +143,48 @@ const API_URL = "https://nifty50-alpha-engine.onrender.com/rank";
 let cachedData = null;
 
 // -----------------------------
-// LOAD STOCKS (ONLY ONCE)
+// LOAD DATA ON PAGE OPEN
 // -----------------------------
-async function loadStocks(retries = 3) {
-
-    const resultBox = document.getElementById("resultBox");
-    resultBox.innerHTML = "<p>Waking up server... please wait.</p>";
+async function loadStocks() {
 
     try {
         const response = await fetch(API_URL);
-
-        if (!response.ok) {
-            throw new Error("Network response failed");
-        }
-
         const data = await response.json();
 
-        if (data.status !== "success") {
-            throw new Error("API returned error");
-        }
+        if (data.status !== "success") return;
 
-        cachedData = data;  // ✅ Store data
+        cachedData = data;
+
+        // Alphabetical order
+        const sortedStocks = [...data.ranking].sort((a, b) =>
+            a.ticker.localeCompare(b.ticker)
+        );
 
         const select = document.getElementById("stockSelect");
         select.innerHTML = "";
 
-        data.ranking.forEach(stock => {
+        sortedStocks.forEach(stock => {
             const option = document.createElement("option");
             option.value = stock.ticker;
             option.textContent = stock.ticker.replace(".NS", "");
             select.appendChild(option);
         });
 
-        resultBox.innerHTML = "<p>Select a stock and click 'Check Stock'.</p>";
+        // Display Top Ranked Stock
+        const topStock = data.ranking[0];
+
+        document.getElementById("topStockBox").innerHTML = `
+            <div class="top-stock">
+                <h2>🥇 Top Ranked Stock</h2>
+                <p><strong>${topStock.ticker}</strong></p>
+                <p>Rank: ${topStock.rank}</p>
+                <p>Percentile: ${topStock.percentile}%</p>
+            </div>
+        `;
 
     } catch (error) {
-
-        console.log("Error loading stocks:", error);
-
-        if (retries > 0) {
-            setTimeout(() => loadStocks(retries - 1), 3000);
-        } else {
-            resultBox.innerHTML =
-                "<p>Backend is starting. Please refresh in a few seconds.</p>";
-        }
+        document.getElementById("resultBox").innerHTML =
+            "<p>Backend waking up... please refresh in 10 seconds.</p>";
     }
 }
 
@@ -72,22 +193,20 @@ async function loadStocks(retries = 3) {
 // -----------------------------
 function predictStock() {
 
-    const select = document.getElementById("stockSelect");
+    const ticker = document.getElementById("stockSelect").value;
     const resultBox = document.getElementById("resultBox");
 
     if (!cachedData) {
         resultBox.innerHTML =
-            "<p>Data still loading. Please wait a moment.</p>";
+            "<p>Data loading... please wait.</p>";
         return;
     }
-
-    const ticker = select.value;
 
     const stock = cachedData.ranking.find(s => s.ticker === ticker);
 
     if (!stock) {
         resultBox.innerHTML =
-            "<p>Stock not found in ranking.</p>";
+            "<p>Stock not found.</p>";
         return;
     }
 
@@ -99,16 +218,15 @@ function predictStock() {
         <div class="card">
             <h3>${stock.ticker}</h3>
             <p><strong>Rank:</strong> ${stock.rank} / ${cachedData.total_stocks}</p>
-            <p><strong>Percentile Rank:</strong> ${stock.percentile}%</p>
+            <p><strong>Percentile:</strong> ${stock.percentile}%</p>
             <p><strong>Risk Level:</strong> ${riskLevel}</p>
-            <p style="margin-top:10px; font-size: 0.9em; color: gray;">
+            <p style="margin-top:10px; font-size: 0.85em; color: gray;">
                 Last Updated: ${cachedData.last_updated}
             </p>
         </div>
     `;
 }
 
-// Load when page opens
 document.addEventListener("DOMContentLoaded", loadStocks);
 
 </script>
