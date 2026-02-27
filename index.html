@@ -11,40 +11,76 @@
             background: linear-gradient(135deg,#0f172a,#1e293b);
             color: white;
             text-align: center;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            overflow-x: hidden;
         }
 
-        .hero {
-            padding: 20px;
-            max-width: 500px;
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 40px 20px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 1.2s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         h1 {
-            font-size: 32px;
+            font-size: 36px;
             margin-bottom: 10px;
         }
 
-        p {
-            opacity: 0.7;
-            margin-bottom: 30px;
+        .tagline {
+            font-size: 16px;
+            opacity: 0.75;
+            margin-bottom: 35px;
+        }
+
+        .section {
+            background: rgba(255,255,255,0.05);
+            padding: 25px;
+            border-radius: 18px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .section h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .section p {
+            font-size: 14px;
+            opacity: 0.8;
+            line-height: 1.6;
         }
 
         button {
-            padding: 16px 30px;
+            padding: 16px 32px;
             font-size: 16px;
             border-radius: 30px;
             border: none;
             background: linear-gradient(90deg,#2563eb,#7c3aed);
             color: white;
             cursor: pointer;
-            transition: transform 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 20px;
         }
 
         button:hover {
             transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(124,58,237,0.4);
+        }
+
+        .footer-note {
+            font-size: 12px;
+            opacity: 0.4;
+            margin-top: 40px;
         }
 
         @media (max-width: 600px) {
@@ -52,8 +88,16 @@
                 font-size: 24px;
             }
 
+            .container {
+                padding: 30px 15px;
+            }
+
             button {
                 width: 100%;
+            }
+
+            .section {
+                padding: 18px;
             }
         }
     </style>
@@ -61,15 +105,77 @@
 
 <body>
 
-<div class="hero">
+<div class="container">
+
     <h1>NIFTY 50 Alpha Engine</h1>
-    <p>
-        Daily cross-sectional ranking model for identifying
-        high-momentum opportunities within the NIFTY 50 universe.
-    </p>
+
+    <div class="tagline">
+        Daily Cross-Sectional 20-Day Relative Outperformance Model
+    </div>
+
+    <div class="section">
+        <h3>What is this model?</h3>
+        <p>
+            The NIFTY 50 Alpha Engine is a quantitative ranking system
+            that evaluates all NIFTY 50 stocks simultaneously using a 
+            cross-sectional momentum framework.
+            <br><br>
+            Instead of predicting absolute price targets, the model ranks 
+            stocks relative to one another based on recent performance 
+            adjusted for volatility.
+        </p>
+    </div>
+
+    <div class="section">
+        <h3>How does it work?</h3>
+        <p>
+            Each stock is scored using:
+            <br>
+            • 20-day momentum (recent trend strength)  
+            <br>
+            • 20-day volatility adjustment (risk normalization)
+            <br><br>
+            Stocks with stronger momentum and controlled volatility
+            receive higher ranks.
+            <br><br>
+            The forecast horizon is 20 trading days,
+            meaning the model estimates which stocks are more likely
+            to outperform others over the next month.
+        </p>
+    </div>
+
+    <div class="section">
+        <h3>When does it work best?</h3>
+        <p>
+            Cross-sectional momentum strategies typically perform best in:
+            <br>
+            • Trending markets  
+            <br>
+            • Sector rotation environments  
+            <br>
+            • Relative strength cycles
+            <br><br>
+            Performance may weaken during highly volatile or sideways markets.
+        </p>
+    </div>
+
+    <div class="section">
+        <h3>Model Update Frequency</h3>
+        <p>
+            Rankings are computed once daily using the latest available market data.
+            All users see the same daily snapshot for consistency.
+        </p>
+    </div>
+
     <button onclick="window.location.href='dashboard.html'">
         Enter Dashboard
     </button>
+
+    <div class="footer-note">
+        Disclaimer: Model outputs are statistical probabilities,
+        not financial advice. Actual market performance may differ.
+    </div>
+
 </div>
 
 </body>
