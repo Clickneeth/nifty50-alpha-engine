@@ -6,8 +6,8 @@
 
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             background: #0f172a;
             color: white;
             text-align: center;
@@ -33,10 +33,16 @@
             font-size: 28px;
         }
 
+        .subtitle {
+            opacity: 0.7;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
         select {
             width: 100%;
             padding: 14px;
-            margin-top: 20px;
+            margin-top: 15px;
             border-radius: 12px;
             border: none;
             font-size: 16px;
@@ -53,11 +59,12 @@
             background: linear-gradient(90deg,#2563eb,#7c3aed);
             color: white;
             cursor: pointer;
-            transition: transform 0.2s ease, opacity 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         button:hover {
             transform: scale(1.02);
+            box-shadow: 0 10px 25px rgba(124,58,237,0.4);
         }
 
         button:disabled {
@@ -89,6 +96,7 @@
             align-items: center;
             justify-content: center;
             flex-direction: column;
+            z-index: 999;
         }
 
         .spinner {
@@ -107,13 +115,7 @@
         }
 
         @media (max-width: 600px) {
-            h1 {
-                font-size: 22px;
-            }
-
-            .container {
-                padding: 15px;
-            }
+            h1 { font-size: 22px; }
         }
     </style>
 </head>
@@ -122,41 +124,26 @@
 
 <div id="loader">
     <div class="spinner"></div>
-    <p>Loading Alpha Engine...</p>
+    <p>Loading Alpha Model...</p>
 </div>
 
 <div class="container" id="mainContent">
 
     <h1>NIFTY 50 Alpha Engine</h1>
-    <p style="opacity:0.7;">20-Day Cross-Sectional Momentum Model</p>
+    <div class="subtitle">
+        Daily Cross-Sectional 20-Day Relative Outperformance Model
+    </div>
 
     <select id="stockSelect"></select>
     <button id="predictBtn" onclick="predictStock()" disabled>
-        Check Stock Outlook
+        Check 20-Day Outlook
     </button>
 
-    <div id="topPerformer" class="card"></div>
+    <!-- Selected Stock will appear here -->
     <div id="resultBox"></div>
 
-    <div class="card show">
-        <h3>About the Model</h3>
-        <p style="font-size:14px; opacity:0.8;">
-            This cross-sectional ranking model compares all NIFTY 50 stocks
-            simultaneously based on 20-day momentum adjusted for volatility.
-            It performs best in trending markets.
-        </p>
-        <p style="font-size:12px; opacity:0.6;">
-            Disclaimer: Results are statistical estimates.
-            Market outcomes may differ from predictions.
-        </p>
-    </div>
-
-    <div class="card show">
-        <h3>Feedback</h3>
-        <button onclick="window.open('https://forms.gle/sdGJKq2aE2jZfeVU6')">
-            Submit Feedback
-        </button>
-    </div>
+    <!-- Top Performer -->
+    <div id="topPerformer" class="card"></div>
 
 </div>
 
@@ -188,25 +175,33 @@ async function loadStocks() {
             select.appendChild(option);
         });
 
-        const top = data.ranking[0];
-        const topCard = document.getElementById("topPerformer");
-
-        topCard.innerHTML = `
-            <h3>Top Ranked Stock Today</h3>
-            <p><strong>${top.ticker}</strong></p>
-            <p>Rank: 1 / ${data.total_stocks}</p>
-        `;
-        topCard.classList.add("show");
+        showTopPerformer();  // show default
 
         document.getElementById("predictBtn").disabled = false;
-
         document.getElementById("loader").style.display = "none";
         document.getElementById("mainContent").classList.add("visible");
 
     } catch {
         document.getElementById("loader").innerHTML =
-            "<p>Server connection failed.</p>";
+            "<p>Unable to connect to model server.</p>";
     }
+}
+
+function showTopPerformer() {
+
+    const top = cachedData.ranking[0];
+    const topCard = document.getElementById("topPerformer");
+
+    topCard.innerHTML = `
+        <h3>Top Ranked Stock Today</h3>
+        <p><strong>${top.ticker}</strong></p>
+        <p>Rank: 1 / ${cachedData.total_stocks}</p>
+        <p style="font-size:12px; opacity:0.6;">
+            Model Updated: ${cachedData.last_updated}
+        </p>
+    `;
+
+    topCard.classList.add("show");
 }
 
 function predictStock() {
@@ -215,15 +210,44 @@ function predictStock() {
     const stock = cachedData.ranking.find(s => s.ticker === ticker);
     if (!stock) return;
 
+    const today = new Date();
+    const futureDate = new Date();
+    futureDate.setDate(today.getDate() + 20);
+
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    const formattedFuture = futureDate.toLocaleDateString(undefined, options);
+
+    let outlookText = "";
+    let toneColor = "#22c55e";
+
+    if (stock.percentile >= 70) {
+        outlookText = "Expected to relatively outperform most NIFTY 50 stocks over the next 20 trading days.";
+    } else if (stock.percentile >= 40) {
+        toneColor = "#eab308";
+        outlookText = "Expected to perform broadly in line with the NIFTY 50 over the next 20 trading days.";
+    } else {
+        toneColor = "#ef4444";
+        outlookText = "Expected to relatively underperform compared to most NIFTY 50 stocks over the next 20 trading days.";
+    }
+
     const box = document.getElementById("resultBox");
 
     box.innerHTML = `
         <div class="card show">
             <h3>${stock.ticker}</h3>
-            <p>Rank: ${stock.rank}</p>
-            <p>Percentile: ${stock.percentile}%</p>
+            <p><strong>Model Rank:</strong> ${stock.rank} / ${cachedData.total_stocks}</p>
+            <p style="color:${toneColor}; font-weight:500; margin-top:10px;">
+                ${outlookText}
+            </p>
+            <p style="font-size:13px; opacity:0.7; margin-top:15px;">
+                Forecast Horizon Ends: ${formattedFuture}
+            </p>
         </div>
     `;
+
+    // Move Top Performer below result
+    const topCard = document.getElementById("topPerformer");
+    topCard.parentNode.appendChild(topCard);
 }
 
 document.addEventListener("DOMContentLoaded", loadStocks);
