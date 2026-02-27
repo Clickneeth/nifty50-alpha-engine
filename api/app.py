@@ -7,22 +7,20 @@ from datetime import datetime
 
 app = FastAPI()
 
-# --------------------------------------------------
-# CORS CONFIG (GitHub Pages Production)
-# --------------------------------------------------
+# -----------------------------
+# CORS
+# -----------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://clickneeth.github.io"
-    ],
-    allow_credentials=False,   # IMPORTANT
+    allow_origins=["https://clickneeth.github.io"],
+    allow_credentials=True,
     allow_methods=["GET"],
     allow_headers=["*"],
 )
 
-# --------------------------------------------------
-# FULL NIFTY 50 UNIVERSE
-# --------------------------------------------------
+# -----------------------------
+# NIFTY 50 LIST
+# -----------------------------
 NIFTY_50 = [
     "ADANIENT.NS","ADANIPORTS.NS","APOLLOHOSP.NS","ASIANPAINT.NS",
     "AXISBANK.NS","BAJAJ-AUTO.NS","BAJFINANCE.NS","BAJAJFINSV.NS",
@@ -39,25 +37,28 @@ NIFTY_50 = [
     "UPL.NS","WIPRO.NS"
 ]
 
-# --------------------------------------------------
+# -----------------------------
+# GLOBAL CACHE
+# -----------------------------
+cached_ranking = None
+last_computed_date = None
+
+
+# -----------------------------
 # FEATURE ENGINEERING
-# --------------------------------------------------
+# -----------------------------
 def compute_features(df):
-
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-
-    df["log_return_1d"] = np.log(df["Close"] / df["Close"].shift(1))
-    df["volatility_20d"] = df["log_return_1d"].rolling(20).std()
+    df["log_return"] = np.log(df["Close"] / df["Close"].shift(1))
+    df["volatility_20d"] = df["log_return"].rolling(20).std()
     df["momentum_20d"] = df["Close"] / df["Close"].shift(20) - 1
-
     df = df.dropna()
     return df
 
-# --------------------------------------------------
-# RANKING LOGIC
-# --------------------------------------------------
-def predict_scores():
+
+# -----------------------------
+# RANKING ENGINE
+# -----------------------------
+def generate_ranking():
 
     results = []
 
@@ -75,10 +76,6 @@ def predict_scores():
                 continue
 
             df = compute_features(df)
-
-            if df.empty:
-                continue
-
             latest = df.iloc[-1]
 
             momentum = float(latest["momentum_20d"])
@@ -91,12 +88,8 @@ def predict_scores():
                 "score": round(score, 6)
             })
 
-        except Exception as e:
-            print(f"Error processing {ticker}: {e}")
+        except Exception:
             continue
-
-    if not results:
-        return pd.DataFrame(columns=["ticker", "score"])
 
     ranking_df = pd.DataFrame(results)
 
@@ -113,24 +106,41 @@ def predict_scores():
 
     return ranking_df
 
-# --------------------------------------------------
-# API ENDPOINT
-# --------------------------------------------------
-@app.get("/rank")
-def rank_stocks():
 
-    ranking_df = predict_scores()
+# -----------------------------
+# DAILY CACHE LOGIC
+# -----------------------------
+def get_cached_ranking():
+    global cached_ranking
+    global last_computed_date
 
-    if ranking_df.empty:
-        return {
-            "status": "error",
-            "message": "No data available",
-            "ranking": []
+    today = datetime.now().date()
+
+    if cached_ranking is None or last_computed_date != today:
+        print("🔄 Recomputing ranking for today...")
+        ranking_df = generate_ranking()
+
+        cached_ranking = {
+            "status": "success",
+            "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "total_stocks": len(ranking_df),
+            "ranking": ranking_df.to_dict(orient="records")
         }
 
-    return {
-        "status": "success",
-        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "total_stocks": len(ranking_df),
-        "ranking": ranking_df.to_dict(orient="records")
-    }
+        last_computed_date = today
+
+    return cached_ranking
+
+
+# -----------------------------
+# API ENDPOINT
+# -----------------------------
+@app.get("/rank")
+def rank_stocks():
+    return get_cached_ranking()
+
+
+# Optional health check
+@app.get("/")
+def home():
+    return {"message": "NIFTY 50 Alpha Engine is live"}
