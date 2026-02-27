@@ -11,13 +11,12 @@
             background: #0f172a;
             color: white;
             text-align: center;
-            overflow-x: hidden;
         }
 
         .container {
-            padding: 20px;
             max-width: 750px;
             margin: auto;
+            padding: 20px;
             opacity: 0;
             transform: translateY(15px);
             transition: all 0.8s ease;
@@ -30,7 +29,7 @@
 
         h1 {
             margin-top: 40px;
-            font-size: 28px;
+            font-size: 26px;
         }
 
         .subtitle {
@@ -42,16 +41,15 @@
         select {
             width: 100%;
             padding: 14px;
-            margin-top: 15px;
             border-radius: 12px;
             border: none;
             font-size: 16px;
+            margin-top: 15px;
         }
 
         button {
             width: 100%;
             padding: 16px;
-            margin-top: 15px;
             border-radius: 12px;
             border: none;
             font-size: 16px;
@@ -59,17 +57,13 @@
             background: linear-gradient(90deg,#2563eb,#7c3aed);
             color: white;
             cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 15px;
+            transition: 0.2s ease;
         }
 
         button:hover {
             transform: scale(1.02);
             box-shadow: 0 10px 25px rgba(124,58,237,0.4);
-        }
-
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
         }
 
         .card {
@@ -79,12 +73,21 @@
             margin-top: 25px;
             opacity: 0;
             transform: translateY(10px);
-            transition: all 0.6s ease;
+            transition: all 0.5s ease;
         }
 
         .card.show {
             opacity: 1;
             transform: translateY(0);
+        }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            margin-top: 8px;
+            font-weight: 600;
         }
 
         #loader {
@@ -131,7 +134,7 @@
 
     <h1>NIFTY 50 Alpha Engine</h1>
     <div class="subtitle">
-        Daily Cross-Sectional 20-Day Relative Outperformance Model
+        Daily 20-Day Relative Outperformance Model
     </div>
 
     <select id="stockSelect"></select>
@@ -139,11 +142,15 @@
         Check 20-Day Outlook
     </button>
 
-    <!-- Selected Stock will appear here -->
     <div id="resultBox"></div>
-
-    <!-- Top Performer -->
     <div id="topPerformer" class="card"></div>
+
+    <div class="card show">
+        <h3>Feedback</h3>
+        <button onclick="window.open('https://forms.gle/sdGJKq2aE2jZfeVU6')">
+            Submit Feedback
+        </button>
+    </div>
 
 </div>
 
@@ -175,7 +182,7 @@ async function loadStocks() {
             select.appendChild(option);
         });
 
-        showTopPerformer();  // show default
+        showTopPerformer();
 
         document.getElementById("predictBtn").disabled = false;
         document.getElementById("loader").style.display = "none";
@@ -188,7 +195,6 @@ async function loadStocks() {
 }
 
 function showTopPerformer() {
-
     const top = cachedData.ranking[0];
     const topCard = document.getElementById("topPerformer");
 
@@ -213,21 +219,17 @@ function predictStock() {
     const today = new Date();
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + 20);
+    const formattedFuture = futureDate.toLocaleDateString();
 
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    const formattedFuture = futureDate.toLocaleDateString(undefined, options);
-
-    let outlookText = "";
-    let toneColor = "#22c55e";
+    let riskLevel = "Moderate";
+    let riskColor = "#eab308";
 
     if (stock.percentile >= 70) {
-        outlookText = "Expected to relatively outperform most NIFTY 50 stocks over the next 20 trading days.";
-    } else if (stock.percentile >= 40) {
-        toneColor = "#eab308";
-        outlookText = "Expected to perform broadly in line with the NIFTY 50 over the next 20 trading days.";
-    } else {
-        toneColor = "#ef4444";
-        outlookText = "Expected to relatively underperform compared to most NIFTY 50 stocks over the next 20 trading days.";
+        riskLevel = "Low Risk";
+        riskColor = "#22c55e";
+    } else if (stock.percentile <= 40) {
+        riskLevel = "Elevated Risk";
+        riskColor = "#ef4444";
     }
 
     const box = document.getElementById("resultBox");
@@ -235,17 +237,26 @@ function predictStock() {
     box.innerHTML = `
         <div class="card show">
             <h3>${stock.ticker}</h3>
-            <p><strong>Model Rank:</strong> ${stock.rank} / ${cachedData.total_stocks}</p>
-            <p style="color:${toneColor}; font-weight:500; margin-top:10px;">
-                ${outlookText}
+            <p><strong>Rank:</strong> ${stock.rank} / ${cachedData.total_stocks}</p>
+            <p style="margin-top:10px;">
+                Expected relative performance over next 20 trading days.
             </p>
+
+            <div class="risk-badge" style="background:${riskColor}20; color:${riskColor}; border:1px solid ${riskColor};">
+                ${riskLevel}
+            </div>
+
             <p style="font-size:13px; opacity:0.7; margin-top:15px;">
                 Forecast Horizon Ends: ${formattedFuture}
+            </p>
+
+            <p style="font-size:12px; opacity:0.5;">
+                Model Last Updated: ${cachedData.last_updated}
             </p>
         </div>
     `;
 
-    // Move Top Performer below result
+    // Move top performer below selected stock
     const topCard = document.getElementById("topPerformer");
     topCard.parentNode.appendChild(topCard);
 }
