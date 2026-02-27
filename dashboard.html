@@ -3,38 +3,47 @@
 <head>
     <title>NIFTY 50 Alpha Dashboard</title>
 
+    <!-- ✅ REQUIRED FOR MOBILE -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <style>
         body {
             background-color: #0a0f1c;
             color: white;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 40px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
+            padding: 20px;
+            text-align: center;
         }
 
         h1 {
-            margin-bottom: 30px;
+            font-size: 22px;
+            margin-bottom: 25px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        select, button {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: none;
+            margin-top: 10px;
         }
 
         select {
-            padding: 12px;
-            font-size: 16px;
-            width: 220px;
-            border-radius: 8px;
-            border: none;
+            background-color: white;
+            color: black;
         }
 
         button {
-            padding: 14px 30px;
-            font-size: 16px;
-            border-radius: 8px;
-            border: none;
             background-color: #1f6feb;
             color: white;
-            cursor: pointer;
-            margin-left: 10px;
-            margin-top: 10px;
+            font-weight: 600;
         }
 
         button:hover {
@@ -42,29 +51,27 @@
         }
 
         .card {
-            margin-top: 25px;
-            padding: 20px;
+            margin-top: 20px;
+            padding: 18px;
             background-color: #161b2e;
             border-radius: 12px;
+            text-align: left;
         }
 
         .top-stock {
-            margin-top: 30px;
-            padding: 20px;
+            margin-top: 25px;
+            padding: 18px;
             background-color: #10223d;
             border-radius: 12px;
             border: 1px solid #1f6feb;
         }
 
         .section {
-            margin-top: 50px;
-            text-align: left;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
+            margin-top: 40px;
             font-size: 14px;
-            line-height: 1.7;
+            line-height: 1.6;
             color: #ccc;
+            text-align: left;
         }
 
         .feedback-btn {
@@ -77,14 +84,27 @@
         }
 
         .divider {
-            margin: 50px auto;
-            width: 60%;
+            margin: 40px auto;
             height: 1px;
             background-color: #222;
+        }
+
+        /* Desktop layout improvement */
+        @media (min-width: 768px) {
+            select, button {
+                width: 250px;
+                display: inline-block;
+            }
+
+            button {
+                margin-left: 10px;
+            }
         }
     </style>
 </head>
 <body>
+
+<div class="container">
 
 <h1>NIFTY 50 Alpha Engine</h1>
 
@@ -96,45 +116,41 @@
 
 <div class="divider"></div>
 
-<!-- Model Explanation -->
 <div class="section">
     <h3>📘 What is a Cross-Sectional Model?</h3>
     <p>
         This engine ranks stocks relative to each other at a given point in time.
         It evaluates momentum and volatility across the NIFTY 50 universe and
-        assigns percentile rankings based on relative strength.
+        assigns percentile rankings.
     </p>
     <p>
-        The model performs best in trending markets where relative strength persists.
-        It may underperform during sideways or highly unstable market phases.
+        It works best in trending markets where relative strength persists.
+        It may underperform during sideways or unstable market phases.
     </p>
 </div>
 
-<!-- Disclaimer -->
 <div class="section">
     <h3>⚠ Disclaimer</h3>
     <p>
-        This tool is developed for educational and research purposes only.
+        This tool is for educational and research purposes only.
         Market conditions change rapidly. Model outputs are statistical projections
         and not financial advice.
     </p>
     <p>
-        Past performance does not guarantee future results.
         Always conduct independent research before making investment decisions.
     </p>
 </div>
 
-<!-- Feedback Section -->
 <div class="section" style="text-align:center;">
     <h3>💬 We Value Your Feedback</h3>
     <p>
-        Help improve the NIFTY 50 Alpha Engine by sharing your suggestions,
-        ideas, or reporting issues.
+        Help improve the NIFTY 50 Alpha Engine.
     </p>
-
     <a href="https://forms.gle/sdGJKq2aE2jZfeVU6" target="_blank">
         <button class="feedback-btn">Give Feedback</button>
     </a>
+</div>
+
 </div>
 
 <script>
@@ -142,9 +158,6 @@
 const API_URL = "https://nifty50-alpha-engine.onrender.com/rank";
 let cachedData = null;
 
-// -----------------------------
-// LOAD DATA ON PAGE OPEN
-// -----------------------------
 async function loadStocks() {
 
     try {
@@ -155,7 +168,6 @@ async function loadStocks() {
 
         cachedData = data;
 
-        // Alphabetical order
         const sortedStocks = [...data.ranking].sort((a, b) =>
             a.ticker.localeCompare(b.ticker)
         );
@@ -170,12 +182,11 @@ async function loadStocks() {
             select.appendChild(option);
         });
 
-        // Display Top Ranked Stock
         const topStock = data.ranking[0];
 
         document.getElementById("topStockBox").innerHTML = `
             <div class="top-stock">
-                <h2>🥇 Top Ranked Stock</h2>
+                <h3>🥇 Top Ranked Stock</h3>
                 <p><strong>${topStock.ticker}</strong></p>
                 <p>Rank: ${topStock.rank}</p>
                 <p>Percentile: ${topStock.percentile}%</p>
@@ -184,13 +195,10 @@ async function loadStocks() {
 
     } catch (error) {
         document.getElementById("resultBox").innerHTML =
-            "<p>Backend waking up... please refresh in 10 seconds.</p>";
+            "<p>Backend waking up... refresh in 10 seconds.</p>";
     }
 }
 
-// -----------------------------
-// PREDICT USING CACHED DATA
-// -----------------------------
 function predictStock() {
 
     const ticker = document.getElementById("stockSelect").value;
@@ -220,7 +228,7 @@ function predictStock() {
             <p><strong>Rank:</strong> ${stock.rank} / ${cachedData.total_stocks}</p>
             <p><strong>Percentile:</strong> ${stock.percentile}%</p>
             <p><strong>Risk Level:</strong> ${riskLevel}</p>
-            <p style="margin-top:10px; font-size: 0.85em; color: gray;">
+            <p style="margin-top:10px; font-size: 12px; color: gray;">
                 Last Updated: ${cachedData.last_updated}
             </p>
         </div>
