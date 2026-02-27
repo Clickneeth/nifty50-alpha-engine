@@ -1,28 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NIFTY 50 Alpha Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>NIFTY 50 Alpha Engine</h1>
+
+<select id="stockSelect"></select>
+
+<button onclick="predictStock()">Check Stock</button>
+
+<div id="resultBox"></div>
+
 <script>
 
 const API_URL = "https://nifty50-alpha-engine.onrender.com/rank";
 
-async function loadStocks(retries = 3) {
+async function loadStocks() {
     try {
         const response = await fetch(API_URL);
-
-        if (!response.ok) {
-            throw new Error("Network response not ok");
-        }
-
         const data = await response.json();
 
-        if (data.status !== "success") {
-            throw new Error("API returned error");
-        }
+        if (data.status !== "success") return;
 
         const select = document.getElementById("stockSelect");
-
-        if (!select) {
-            console.error("stockSelect element not found");
-            return;
-        }
-
         select.innerHTML = "";
 
         data.ranking.forEach(stock => {
@@ -32,88 +35,38 @@ async function loadStocks(retries = 3) {
             select.appendChild(option);
         });
 
-        console.log("Stocks loaded successfully");
-
     } catch (error) {
-
-        console.error("Error loading stocks:", error);
-
-        if (retries > 0) {
-            console.log("Retrying... Attempts left:", retries);
-            setTimeout(() => loadStocks(retries - 1), 3000);
-        } else {
-            document.getElementById("resultBox").innerHTML =
-                "<p>Backend is waking up. Please refresh in a few seconds.</p>";
-        }
+        console.log("Error loading stocks", error);
     }
 }
 
 async function predictStock() {
 
-    const select = document.getElementById("stockSelect");
+    const ticker = document.getElementById("stockSelect").value;
     const resultBox = document.getElementById("resultBox");
 
-    if (!select || !resultBox) {
-        console.error("Required DOM elements not found");
-        return;
-    }
-
-    const ticker = select.value;
-
-    resultBox.innerHTML =
-        "<p>Loading latest ranking data...</p>";
+    resultBox.innerHTML = "<p>Loading...</p>";
 
     try {
         const response = await fetch(API_URL);
-
-        if (!response.ok) {
-            throw new Error("Network response not ok");
-        }
-
         const data = await response.json();
-
-        if (data.status !== "success") {
-            resultBox.innerHTML =
-                "<p>Unable to fetch ranking data.</p>";
-            return;
-        }
 
         const stock = data.ranking.find(s => s.ticker === ticker);
 
-        if (!stock) {
-            resultBox.innerHTML =
-                "<p>Stock not found in ranking.</p>";
-            return;
-        }
-
-        const probability = stock.percentile;
-
-        let riskLevel = "Moderate";
-        if (stock.percentile >= 70) riskLevel = "Low";
-        if (stock.percentile <= 40) riskLevel = "Elevated";
-
         resultBox.innerHTML = `
-            <div class="card">
-                <h3>${stock.ticker}</h3>
-                <p><strong>Rank:</strong> ${stock.rank} / ${data.total_stocks}</p>
-                <p><strong>Percentile Rank:</strong> ${stock.percentile}%</p>
-                <p><strong>Probability of Outperformance:</strong> ${probability.toFixed(1)}%</p>
-                <p><strong>Risk Level:</strong> ${riskLevel}</p>
-                <p style="margin-top:10px; font-size: 0.9em; color: gray;">
-                    Last Updated: ${data.last_updated}
-                </p>
-            </div>
+            <h3>${stock.ticker}</h3>
+            <p>Rank: ${stock.rank}</p>
+            <p>Percentile: ${stock.percentile}%</p>
         `;
 
     } catch (error) {
-        console.error("Prediction error:", error);
-        resultBox.innerHTML =
-            "<p>Error connecting to backend. Try again in a few seconds.</p>";
+        resultBox.innerHTML = "<p>Error fetching data</p>";
     }
 }
 
-document.addEventListener("DOMContentLoaded", function() {
-    loadStocks();
-});
+document.addEventListener("DOMContentLoaded", loadStocks);
 
 </script>
+
+</body>
+</html>
