@@ -56,7 +56,7 @@ def compute_features(df):
 
 
 # -----------------------------
-# RANKING ENGINE
+# RANKING ENGINE (SAFE VERSION)
 # -----------------------------
 def generate_ranking():
 
@@ -76,6 +76,10 @@ def generate_ranking():
                 continue
 
             df = compute_features(df)
+
+            if df.empty:
+                continue
+
             latest = df.iloc[-1]
 
             momentum = float(latest["momentum_20d"])
@@ -88,13 +92,19 @@ def generate_ranking():
                 "score": round(score, 6)
             })
 
-        except Exception:
+        except Exception as e:
+            print(f"Error processing {ticker}: {e}")
             continue
+
+    # 🔥 CRASH PROTECTION
+    if len(results) == 0:
+        print("⚠️ No valid stock data fetched.")
+        return None
 
     ranking_df = pd.DataFrame(results)
 
     ranking_df = ranking_df.sort_values(
-        "score",
+        by="score",
         ascending=False
     ).reset_index(drop=True)
 
@@ -108,7 +118,7 @@ def generate_ranking():
 
 
 # -----------------------------
-# DAILY CACHE LOGIC
+# DAILY CACHE LOGIC (SAFE)
 # -----------------------------
 def get_cached_ranking():
     global cached_ranking
@@ -117,8 +127,19 @@ def get_cached_ranking():
     today = datetime.now().date()
 
     if cached_ranking is None or last_computed_date != today:
+
         print("🔄 Recomputing ranking for today...")
         ranking_df = generate_ranking()
+
+        # 🔥 HANDLE FAILURE SAFELY
+        if ranking_df is None:
+            return {
+                "status": "error",
+                "message": "Data temporarily unavailable. Please try again shortly.",
+                "ranking": [],
+                "total_stocks": 0,
+                "last_updated": None
+            }
 
         cached_ranking = {
             "status": "success",
@@ -140,7 +161,6 @@ def rank_stocks():
     return get_cached_ranking()
 
 
-# Optional health check
 @app.get("/")
 def home():
     return {"message": "NIFTY 50 Alpha Engine is live"}
