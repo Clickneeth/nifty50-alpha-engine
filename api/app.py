@@ -56,7 +56,22 @@ def compute_features(df):
 
 
 # -----------------------------
-# RANKING ENGINE (SAFE)
+# SAFE VALUE EXTRACTOR
+# -----------------------------
+def safe_float(value):
+    """
+    Converts pandas scalar/Series to float safely.
+    """
+    try:
+        if hasattr(value, "item"):
+            value = value.item()
+        return float(value)
+    except Exception:
+        return None
+
+
+# -----------------------------
+# RANKING ENGINE (FULL SAFE)
 # -----------------------------
 def generate_ranking():
 
@@ -75,6 +90,10 @@ def generate_ranking():
             if df.empty or len(df) < 40:
                 continue
 
+            # Flatten multi-index columns if present
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+
             df = compute_features(df)
 
             if df.empty:
@@ -82,8 +101,11 @@ def generate_ranking():
 
             latest = df.iloc[-1]
 
-            momentum = float(latest["momentum_20d"])
-            volatility = float(latest["volatility_20d"])
+            momentum = safe_float(latest["momentum_20d"])
+            volatility = safe_float(latest["volatility_20d"])
+
+            if momentum is None or volatility is None:
+                continue
 
             score = (momentum * 0.6) - (volatility * 0.4)
 
@@ -96,7 +118,6 @@ def generate_ranking():
             print(f"Error processing {ticker}: {e}")
             continue
 
-    # 🔥 If nothing fetched
     if len(results) == 0:
         print("⚠️ No valid stock data fetched.")
         return None
@@ -118,7 +139,7 @@ def generate_ranking():
 
 
 # -----------------------------
-# DAILY CACHE LOGIC (RETRY + STICKY)
+# DAILY CACHE (RETRY + STICKY)
 # -----------------------------
 def get_cached_ranking():
     global cached_ranking
@@ -128,18 +149,17 @@ def get_cached_ranking():
 
     if cached_ranking is None or last_computed_date != today:
 
-        print("🔄 Recomputing ranking for today...")
+        print("🔄 Recomputing ranking...")
 
         ranking_df = None
 
-        # 🔥 Retry logic (3 attempts)
+        # Retry 3 times
         for attempt in range(3):
-            print(f"Attempt {attempt+1}...")
+            print(f"Attempt {attempt + 1}")
             ranking_df = generate_ranking()
             if ranking_df is not None:
                 break
 
-        # ✅ If computation successful
         if ranking_df is not None:
 
             cached_ranking = {
@@ -155,12 +175,10 @@ def get_cached_ranking():
         else:
             print("⚠️ Ranking failed after retries.")
 
-            # 🔥 Sticky cache: return old data if exists
             if cached_ranking is not None:
                 print("Using previous cached ranking.")
                 return cached_ranking
 
-            # If nothing ever computed
             return {
                 "status": "error",
                 "message": "Data temporarily unavailable. Please try again shortly.",
@@ -173,7 +191,7 @@ def get_cached_ranking():
 
 
 # -----------------------------
-# API ENDPOINT
+# API ENDPOINTS
 # -----------------------------
 @app.get("/rank")
 def rank_stocks():
