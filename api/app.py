@@ -56,7 +56,7 @@ def compute_features(df):
 
 
 # -----------------------------
-# RANKING ENGINE (SAFE VERSION)
+# RANKING ENGINE (SAFE)
 # -----------------------------
 def generate_ranking():
 
@@ -96,7 +96,7 @@ def generate_ranking():
             print(f"Error processing {ticker}: {e}")
             continue
 
-    # 🔥 CRASH PROTECTION
+    # 🔥 If nothing fetched
     if len(results) == 0:
         print("⚠️ No valid stock data fetched.")
         return None
@@ -118,7 +118,7 @@ def generate_ranking():
 
 
 # -----------------------------
-# DAILY CACHE LOGIC (SAFE)
+# DAILY CACHE LOGIC (RETRY + STICKY)
 # -----------------------------
 def get_cached_ranking():
     global cached_ranking
@@ -129,10 +129,38 @@ def get_cached_ranking():
     if cached_ranking is None or last_computed_date != today:
 
         print("🔄 Recomputing ranking for today...")
-        ranking_df = generate_ranking()
 
-        # 🔥 HANDLE FAILURE SAFELY
-        if ranking_df is None:
+        ranking_df = None
+
+        # 🔥 Retry logic (3 attempts)
+        for attempt in range(3):
+            print(f"Attempt {attempt+1}...")
+            ranking_df = generate_ranking()
+            if ranking_df is not None:
+                break
+
+        # ✅ If computation successful
+        if ranking_df is not None:
+
+            cached_ranking = {
+                "status": "success",
+                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "total_stocks": len(ranking_df),
+                "ranking": ranking_df.to_dict(orient="records")
+            }
+
+            last_computed_date = today
+            print("✅ Ranking computed successfully.")
+
+        else:
+            print("⚠️ Ranking failed after retries.")
+
+            # 🔥 Sticky cache: return old data if exists
+            if cached_ranking is not None:
+                print("Using previous cached ranking.")
+                return cached_ranking
+
+            # If nothing ever computed
             return {
                 "status": "error",
                 "message": "Data temporarily unavailable. Please try again shortly.",
@@ -140,15 +168,6 @@ def get_cached_ranking():
                 "total_stocks": 0,
                 "last_updated": None
             }
-
-        cached_ranking = {
-            "status": "success",
-            "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "total_stocks": len(ranking_df),
-            "ranking": ranking_df.to_dict(orient="records")
-        }
-
-        last_computed_date = today
 
     return cached_ranking
 
