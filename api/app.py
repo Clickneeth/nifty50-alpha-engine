@@ -12,7 +12,13 @@ app = FastAPI()
 # -----------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://clickneeth.github.io"],
+    allow_origins=[
+        "https://clickneeth.github.io",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
     allow_credentials=True,
     allow_methods=["GET"],
     allow_headers=["*"],
@@ -42,6 +48,7 @@ NIFTY_50 = [
 # -----------------------------
 cached_ranking = None
 last_computed_date = None
+previous_ranks = {}  # ticker -> rank, from the last successfully computed day
 
 
 # -----------------------------
@@ -71,28 +78,45 @@ def safe_float(value):
 
 
 # -----------------------------
-# RANKING ENGINE (FULL SAFE)
+# RANKING ENGINE (BATCHED + SAFE)
 # -----------------------------
 def generate_ranking():
+
+    try:
+        batch = yf.download(
+            NIFTY_50,
+            period="6mo",
+            interval="1d",
+            group_by="ticker",
+            threads=True,
+            progress=False,
+            auto_adjust=True,
+            timeout=20,
+        )
+    except Exception as e:
+        print(f"Batch download failed entirely: {e}")
+        return None
+
+    if batch is None or batch.empty:
+        print("⚠️ Batch download returned no data.")
+        return None
 
     results = []
 
     for ticker in NIFTY_50:
         try:
-            df = yf.download(
-                ticker,
-                period="6mo",
-                interval="1d",
-                progress=False,
-                auto_adjust=True
-            )
-
-            if df.empty or len(df) < 40:
+            if ticker not in batch.columns.get_level_values(0):
                 continue
 
-            # Flatten multi-index columns if present
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
+            df = batch[ticker].copy()
+
+            if df.empty or "Close" not in df.columns:
+                continue
+
+            df = df.dropna(subset=["Close"])
+
+            if len(df) < 40:
+                continue
 
             df = compute_features(df)
 
@@ -144,6 +168,7 @@ def generate_ranking():
 def get_cached_ranking():
     global cached_ranking
     global last_computed_date
+    global previous_ranks
 
     today = datetime.now().date()
 
@@ -162,12 +187,24 @@ def get_cached_ranking():
 
         if ranking_df is not None:
 
+            records = ranking_df.to_dict(orient="records")
+
+            for row in records:
+                prev_rank = previous_ranks.get(row["ticker"])
+                if prev_rank is None:
+                    row["rank_change"] = None
+                else:
+                    row["rank_change"] = prev_rank - row["rank"]
+
             cached_ranking = {
                 "status": "success",
                 "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "total_stocks": len(ranking_df),
-                "ranking": ranking_df.to_dict(orient="records")
+                "ranking": records
             }
+
+            # remember today's ranks for tomorrow's rank_change comparison
+            previous_ranks = {r["ticker"]: r["rank"] for r in records}
 
             last_computed_date = today
             print("✅ Ranking computed successfully.")
@@ -196,6 +233,17 @@ def get_cached_ranking():
 @app.get("/rank")
 def rank_stocks():
     return get_cached_ranking()
+
+
+@app.get("/health")
+def health():
+    """Lightweight liveness check that never triggers a recompute.
+    Safe for uptime pingers to hit frequently (e.g. to stop free-tier hosts sleeping)."""
+    return {
+        "status": "ok",
+        "has_cached_ranking": cached_ranking is not None,
+        "last_computed_date": str(last_computed_date) if last_computed_date else None,
+    }
 
 
 @app.get("/")

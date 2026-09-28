@@ -90,6 +90,52 @@
             font-weight: 600;
         }
 
+        .error-box {
+            background: #1e293b;
+            border: 1px solid #ef4444;
+            padding: 20px;
+            border-radius: 14px;
+            margin-top: 20px;
+        }
+
+        .error-box p {
+            margin: 0 0 12px 0;
+            opacity: 0.9;
+        }
+
+        .leaderboard-wrap {
+            max-height: 420px;
+            overflow-y: auto;
+            margin-top: 15px;
+            border-radius: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 8px 10px;
+            text-align: left;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            background: #1e293b;
+            opacity: 1;
+        }
+
+        tbody tr:nth-child(even) {
+            background: rgba(255,255,255,0.03);
+        }
+
+        .change-up { color: #22c55e; }
+        .change-down { color: #ef4444; }
+        .change-flat { opacity: 0.5; }
+
         #loader {
             position: fixed;
             background: #0f172a;
@@ -145,6 +191,23 @@
     <div id="resultBox"></div>
     <div id="topPerformer" class="card"></div>
 
+    <div class="card show" id="leaderboardCard" style="text-align:left; display:none;">
+        <h3>Full Leaderboard</h3>
+        <div class="leaderboard-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Stock</th>
+                        <th>Score</th>
+                        <th>Chg</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody"></tbody>
+            </table>
+        </div>
+    </div>
+
     <div class="card show">
         <h3>Feedback</h3>
         <button onclick="window.open('https://forms.gle/sdGJKq2aE2jZfeVU6')">
@@ -157,14 +220,34 @@
 <script>
 
 const API_URL = "https://nifty50-alpha-engine.onrender.com/rank";
+const FETCH_TIMEOUT_MS = 15000;
 let cachedData = null;
 
-async function loadStocks() {
+async function fetchWithTimeout(url, ms) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
     try {
-        const response = await fetch(API_URL);
+        return await fetch(url, { signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function loadStocks() {
+    document.getElementById("loader").style.display = "flex";
+    document.getElementById("loader").innerHTML = `
+        <div class="spinner"></div>
+        <p>Loading Alpha Model...</p>
+    `;
+
+    try {
+        const response = await fetchWithTimeout(API_URL, FETCH_TIMEOUT_MS);
         const data = await response.json();
 
-        if (data.status !== "success") return;
+        if (data.status !== "success") {
+            showLoadError(data.message || "Model data is temporarily unavailable.");
+            return;
+        }
 
         cachedData = data;
 
@@ -183,15 +266,54 @@ async function loadStocks() {
         });
 
         showTopPerformer();
+        renderLeaderboard();
 
         document.getElementById("predictBtn").disabled = false;
         document.getElementById("loader").style.display = "none";
         document.getElementById("mainContent").classList.add("visible");
 
-    } catch {
-        document.getElementById("loader").innerHTML =
-            "<p>Unable to connect to model server.</p>";
+    } catch (err) {
+        const reason = err.name === "AbortError"
+            ? "The model server took too long to respond."
+            : "Unable to connect to model server.";
+        showLoadError(reason);
     }
+}
+
+function showLoadError(message) {
+    document.getElementById("loader").innerHTML = `
+        <div class="error-box">
+            <p>${message}</p>
+            <button onclick="loadStocks()">Try Again</button>
+        </div>
+    `;
+}
+
+function rankChangeLabel(change) {
+    if (change === null || change === undefined) {
+        return `<span class="change-flat">NEW</span>`;
+    }
+    if (change > 0) {
+        return `<span class="change-up">&#9650; ${change}</span>`;
+    }
+    if (change < 0) {
+        return `<span class="change-down">&#9660; ${Math.abs(change)}</span>`;
+    }
+    return `<span class="change-flat">&mdash;</span>`;
+}
+
+function renderLeaderboard() {
+    const body = document.getElementById("leaderboardBody");
+    body.innerHTML = cachedData.ranking.map(stock => `
+        <tr>
+            <td>${stock.rank}</td>
+            <td>${stock.ticker.replace(".NS","")}</td>
+            <td>${stock.score}</td>
+            <td>${rankChangeLabel(stock.rank_change)}</td>
+        </tr>
+    `).join("");
+
+    document.getElementById("leaderboardCard").style.display = "block";
 }
 
 function showTopPerformer() {
@@ -200,7 +322,7 @@ function showTopPerformer() {
 
     topCard.innerHTML = `
         <h3>Top Ranked Stock Today</h3>
-        <p><strong>${top.ticker}</strong></p>
+        <p><strong>${top.ticker}</strong> ${rankChangeLabel(top.rank_change)}</p>
         <p>Rank: 1 / ${cachedData.total_stocks}</p>
         <p style="font-size:12px; opacity:0.6;">
             Model Updated: ${cachedData.last_updated}
@@ -237,7 +359,7 @@ function predictStock() {
     box.innerHTML = `
         <div class="card show">
             <h3>${stock.ticker}</h3>
-            <p><strong>Rank:</strong> ${stock.rank} / ${cachedData.total_stocks}</p>
+            <p><strong>Rank:</strong> ${stock.rank} / ${cachedData.total_stocks} ${rankChangeLabel(stock.rank_change)}</p>
             <p style="margin-top:10px;">
                 Expected relative performance over next 20 trading days.
             </p>
